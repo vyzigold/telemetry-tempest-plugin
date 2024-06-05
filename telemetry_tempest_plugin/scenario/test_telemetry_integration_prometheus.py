@@ -12,6 +12,7 @@
 
 import os
 
+import requests
 from tempest import config
 from tempest.lib.common.utils import data_utils
 from tempest.scenario import manager
@@ -74,6 +75,22 @@ class PrometheusGabbiTest(manager.ScenarioTest):
                 raise Exception("%s endpoint not found" %
                                 opt_section.catalog_type)
             return endpoints[0]['endpoints'][0][endpoint_type].rstrip('/')
+
+    @classmethod
+    def resource_cleanup(cls):
+        headers = {'X-Auth-Token': cls.os_primary.auth_provider.get_auth()[0]}
+        r = requests.get(os.environ['HEAT_SERVICE_URL'] + "/stacks",
+                         headers=headers)
+
+        if r.status_code == 200 and \
+                "stacks" in r.json() and \
+                len(r.json()["stacks"]) > 0:
+            stack = r.json()["stacks"][0]
+            delete_url = (f'{os.environ["HEAT_SERVICE_URL"]}/stacks/'
+                          f'{stack["stack_name"]}/{stack["id"]}')
+            requests.delete(delete_url, headers=headers)
+
+        super(PrometheusGabbiTest, cls).resource_cleanup()
 
     def _prep_test(self, filename):
         auth = self.os_primary.auth_provider.get_auth()
